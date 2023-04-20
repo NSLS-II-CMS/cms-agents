@@ -1,6 +1,6 @@
 [Unit]
 Description=CMS SingleTask GP Agent in Bluesky Adaptive Server
-# Requires=network.target
+After=network.target
 
 [Service]
 Environment="BS_AGENT_STARTUP_SCRIPT_PATH=/nsls2/data/cms/shared/config/source/cms-agents/cms_agents/startup_scripts/gp_bt2.py"
