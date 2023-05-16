@@ -1,0 +1,16 @@
+[Unit]
+Description=CMS SingleTask GP Agent in Bluesky Adaptive Server
+After=network.target
+
+[Service]
+Environment="BS_AGENT_STARTUP_SCRIPT_PATH=/nsls2/data/cms/shared/config/source/cms-agents/cms_agents/startup_scripts/gp_bt2.py"
+Environment="TILED_ENV=2023-1.2-py39-tiled"
+Environment="PYTHONPATH=/nsls2/data/cms/shared/config/bluesky-adaptive-overlay/${TILED_ENV}/lib/python3.9/site-packages:$PYTHONPATH"
+#
+ExecStart=/nsls2/conda/envs/${TILED_ENV}/bin/uvicorn bluesky_adaptive.server:app
+#
+User=xf11bm
+Group=xf11bm
+
+[Install]
+WantedBy=multi-user.target
