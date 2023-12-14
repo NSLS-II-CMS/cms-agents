@@ -15,7 +15,7 @@ logger = getLogger("cms_agents.gpcam_agent")
 
 #  setting up parameters
 # motor speed in x, x here is the "other" dimension (in 2d) that we can freely move through
-v = 0.1  # in unit [x per second]
+v = 30  # in unit [x per second]
 
 # bounds x,t
 # end_of_time = 100  # [seconds]
@@ -62,7 +62,7 @@ class CMSgpCAMAgent(CMSBaseAgent):
     These agents should respond to messages with topic "cms.bluesky.reduced.documents".
     """
 
-    def __init__(self, min_req_points: int = 5, expiration_time: float = 30 * 60, **kwargs):
+    def __init__(self, min_req_points: int = 5, expiration_time: float = 10*60*60, **kwargs):
         _default_kwargs = self.get_beamline_objects()
         _default_kwargs.update(**kwargs)
         super().__init__(independent_key=None, target_key=None, **_default_kwargs)
@@ -70,7 +70,7 @@ class CMSgpCAMAgent(CMSBaseAgent):
         self.independent_cache = list()
         self.observable_cache = list()
 
-        self.bounds = np.array([[34.2, 51.9], [0, 1.0 * expiration_time]])
+        self.bounds = np.array([[34.2, 51.9], [0, 2.0 * expiration_time]])
         logger.info(f"bounds: {self.bounds}")
         # Noise, X length scale, time length
         self.hps_bounds = np.array([[0.0001, 10.0], [0.01, 100.0], [0.01, 2.0 * expiration_time]])
@@ -152,7 +152,7 @@ class CMSgpCAMAgent(CMSBaseAgent):
         x_data = np.stack(self.independent_cache, axis=0)
         y_data = np.stack(self.observable_cache, axis=0)
 
-        self.gp_optimizer.tell(x=x_data, y=y_data, variances=(0.1 * np.ones_like(y_data)))
+        self.gp_optimizer.tell(x=x_data, y=y_data, variances=(0.05 * np.ones_like(y_data)))
         return dict(independent_variable=x, observable=y)
 
     def _retrain_gp(self) -> bool:
@@ -219,7 +219,9 @@ class CMSgpCAMAgent(CMSBaseAgent):
             logger.info("training gp_optimizer")
             self.gp_optimizer.train_gp(self.hps_bounds)
 
-        self.current_position = self.independent_cache[-1]
+        #self.current_position = self.independent_cache[-1]
+        self.current_position = self.gp_optimizer.x_data[-1]
+
         # we want the last "position" before initializing the gp_optimizer
         ask_result = self.gp_optimizer.ask(
             position=self.current_position,
@@ -229,7 +231,8 @@ class CMSgpCAMAgent(CMSBaseAgent):
             pop_size=20,
             max_iter=20,
             tol=1e-6,
-            constraints=(self.nlc,),
+            #constraints=(self.nlc,),
+            constraints=(),
             vectorized=False,
         )
 
@@ -272,7 +275,7 @@ class CMSgpCAMAgent(CMSBaseAgent):
 
     @property
     def stop_experiment_time(self):
-        return datetime.fromtimestamp(self._stop_experiment_time)
+        return datetime.fromtimestamp(self._stop_experiment_time).strftime("%m-%d %H:%M:%S")
 
     def server_registrations(self):
         self._register_property("acquisition_function")
@@ -281,3 +284,8 @@ class CMSgpCAMAgent(CMSBaseAgent):
         self._register_property("known_observable_data")
         self._register_property("stop_experiment_time")
         return super(CMSBaseAgent, self).server_registrations()
+
+
+# TODO:
+# - Allow for more than one value (signal) being sent to gpCAM.
+# - Allow for variance to be sent to gpCAM.
