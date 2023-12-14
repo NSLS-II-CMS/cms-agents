@@ -1,22 +1,22 @@
 import sys
-#sys.path.append("/nsls2/data/cms/shared/config/tsuchinoko-pip-venv/lib/python3.9/site-packages/")
-#sys.path.append("/nsls2/data/cms/shared/config/source/")
+
+# sys.path.append("/nsls2/data/cms/shared/config/tsuchinoko-pip-venv/lib/python3.9/site-packages/")
+# sys.path.append("/nsls2/data/cms/shared/config/source/")
 # sys.path.append("/nsls2/data/cms/shared/config/source/tsuchinoko/")
 sys.path.append("/nsls2/users/rpandolfi/venv/lib/python3.9/site-packages")
 
 from datetime import datetime
 from logging import getLogger
 from time import time as ttime
-from typing import Dict, Sequence, Tuple, Union, List
+from typing import Dict, List, Sequence, Tuple, Union
 
 import numpy as np
 from gpcam.gp_optimizer import GPOptimizer
 from numpy.typing import ArrayLike
 from scipy.optimize import NonlinearConstraint
+from tsuchinoko.execution.bluesky_adaptive import TsuchinokoAgent
 
 from cms_agents.agents import CMSBaseAgent
-
-from tsuchinoko.execution.bluesky_adaptive import TsuchinokoAgent
 
 logger = getLogger("cms_agents.gpcam_agent")
 # initial_ask_rng = np.random.default_rng(20230518)
@@ -106,16 +106,17 @@ class CMSTsuchinokoAgent(CMSBaseAgent, TsuchinokoAgent):
     def measurement_plan(self, point):
         """Point is array of 2 values, x and time where x is a position proxy for temperature."""
 
-        x_position = point[0]
-        time_from_start = point[1]
-        suggested_epoch_time = self.earliest_known_time + time_from_start
+        # x_position = point[0]
+        # time_from_start = point[1]
+        # suggested_epoch_time = self.earliest_known_time + time_from_start
 
-        if suggested_epoch_time > self.expiration_time + self.earliest_known_time:
-            return "agent_stop_sample", [], {}
-        elif ttime() > self._stop_experiment_time:
-            return "agent_stop_sample", [], {}
-        else:
-            return "agent_feedback_time_plan", [x_position, suggested_epoch_time], {"align": False, "md": {}}
+        # if suggested_epoch_time > self.expiration_time + self.earliest_known_time:
+        #     return "agent_stop_sample", [], {}
+        # elif ttime() > self._stop_experiment_time:
+        #     return "agent_stop_sample", [], {}
+        # else:
+        #     return "agent_feedback_time_plan", [x_position, suggested_epoch_time], {"align": False, "md": {}}
+        return "agent_start_sample_TOMO", [point], {"exposure_time": 1.0, "md": {}}
 
     def unpack_run(self, run) -> Tuple[Union[float, ArrayLike], Union[float, ArrayLike]]:
         """Unpack information from the "reduction" step
@@ -134,8 +135,11 @@ class CMSTsuchinokoAgent(CMSBaseAgent, TsuchinokoAgent):
         # value = run.primary.data["linecut_qr_fit__fit_peaks_grain_size1"].read()
 
         measurement_x = run.metadata["start"]["sample_x"]
-        measurement_phi = run.metadata["start"]["sample_phi"]
-        value = run.table()['pilatus8002.stats1.total'].read() -run.table()['pilatus8002.stats2.total'].read()
+        measurement_phi = run.metadata["start"]["sample_phi"]  # TODO: Make sure this is in the start doc!
+        value = (
+            run.primary["data"]["pilatus8002.stats1.total"].read()
+            - run.primary["data"]["pilatus8002.stats2.total"].read()
+        )
 
         if self.earliest_known_time is None:
             self.earliest_known_time = _sample_clock_zero_readval
@@ -302,4 +306,3 @@ class CMSTsuchinokoAgent(CMSBaseAgent, TsuchinokoAgent):
     #     self._register_property("known_observable_data")
     #     self._register_property("stop_experiment_time")
     #     return super(CMSBaseAgent, self).server_registrations()
-
